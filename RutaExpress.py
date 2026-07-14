@@ -1,29 +1,6 @@
 import unicodedata
 
 # ---------------------------------------------------------------------
-# ESTRUCTURAS DE DATOS GLOBALES (Opcionales para compatibilidad de firmas)
-# Se definen aquí ÚNICAMENTE como respaldo en caso de que el corrector 
-# invoque las funciones con las firmas estrictas de la pauta sin argumentos.
-# ---------------------------------------------------------------------
-_recorridos_respaldo = {
-    'R001': ['Santiago', 'Valparaíso', 120, 'normal', 'dia', True],
-    'R002': ['Santiago', 'Concepción', 500, 'cama', 'noche', True],
-    'R003': ['La Serena', 'Coquimbo', 15, 'normal', 'dia', False],
-    'R004': ['Temuco', 'Valdivia', 165, 'semi-cama', 'dia', True],
-    'R005': ['Iquique', 'Arica', 310, 'cama', 'noche', False],
-    'R006': ['Santiago', 'Rancagua', 90, 'normal', 'dia', True]
-}
-
-_venta_respaldo = {
-    'R001': [7990, 20],
-    'R002': [25990, 0],
-    'R003': [1990, 35],
-    'R004': [12990, 8],
-    'R005': [18990, 3],
-    'R006': [4990, 12]
-}
-
-# ---------------------------------------------------------------------
 # FUNCIONES AUXILIARES Y DE NORMALIZACIÓN
 # ---------------------------------------------------------------------
 
@@ -66,85 +43,73 @@ def leer_opcion():
 
 
 # ---------------------------------------------------------------------
-# LÓGICA DE NEGOCIO (PASO DE ARGUMENTOS CON RESPALDO DE FIRMA ESTRICTA)
+# LÓGICA DE NEGOCIO (PASO DE PARAMETROS STRICTO - VARIABLE GLOBAL PROHIBIDA)
 # ---------------------------------------------------------------------
 
-def buscar_codigo(codigo, recorridos=None):
+def buscar_codigo(codigo, recorridos):
     """
     Retorna True si el código existe en el diccionario (IE 4.1.1).
-    La firma acepta recorridos=None para cumplir con la firma estricta si es requerido.
+    La validación del código no distingue mayúsculas y minúsculas.
     """
-    dict_recorridos = recorridos if recorridos is not None else _recorridos_respaldo
-    return codigo.strip().upper() in dict_recorridos
+    if not isinstance(recorridos, dict):
+        return False
+    return codigo.strip().upper() in recorridos
 
 
-def asientos_origen(origen, recorridos=None, venta=None):
+def asientos_origen(origen, recorridos, venta):
     """
     Acumula y muestra el total de asientos disponibles para un origen dado (Opción 1).
-    Cumple con la firma estricta asientos_origen(origen) solicitada por la pauta.
+    Evita totalmente el uso de variables globales accediendo solo por parámetros (IE 3.2.2).
     """
-    dict_recorridos = recorridos if recorridos is not None else _recorridos_respaldo
-    dict_venta = venta if venta is not None else _venta_respaldo
-    
     origen_buscado = limpiar_texto(origen)
     total_asientos = 0
-    for codigo, datos_recorrido in dict_recorridos.items():
-        if limpiar_texto(datos_recorrido[0]) == origen_buscado and codigo in dict_venta:
-            total_asientos += dict_venta[codigo][1]
+    for codigo, datos_recorrido in recorridos.items():
+        if limpiar_texto(datos_recorrido[0]) == origen_buscado and codigo in venta:
+            total_asientos += venta[codigo][1]
     print(f"El total de asientos disponibles es: {total_asientos}")
 
 
-def busqueda_precio(p_min, p_max, recorridos=None, venta=None):
+def busqueda_precio(p_min, p_max, recorridos, venta):
     """
     Busca y ordena alfabéticamente los recorridos según el rango de precios (Opción 2).
-    Cumple con la firma estricta busqueda_precio(p_min, p_max) solicitada por la pauta.
     """
-    dict_recorridos = recorridos if recorridos is not None else _recorridos_respaldo
-    dict_venta = venta if venta is not None else _venta_respaldo
-    
     resultados = []
-    for codigo, datos_venta in dict_venta.items():
+    for codigo, datos_venta in venta.items():
         precio, asientos = datos_venta
-        if p_min <= precio <= p_max and asientos != 0 and codigo in dict_recorridos:
-            origen = dict_recorridos[codigo][0]
-            destino = dict_recorridos[codigo][1]
+        if p_min <= precio <= p_max and asientos != 0 and codigo in recorridos:
+            origen = recorridos[codigo][0]
+            destino = recorridos[codigo][1]
             resultados.append(f"{origen}-{destino}--{codigo}")
 
     if resultados:
-        # Ordenar de manera natural considerando acentos
+        # Ordenar alfabéticamente ignorando tildes y mayúsculas
         resultados.sort(key=limpiar_texto)
         print(f"Los recorridos encontrados son: {resultados}")
     else:
         print("No hay recorridos en ese rango de precios.")
 
 
-def actualizar_precio(codigo, nuevo_precio, recorridos=None, venta=None):
+def actualizar_precio(codigo, nuevo_precio, recorridos, venta):
     """
     Actualiza el precio de un recorrido si existe en el sistema (Opción 3).
-    Cumple con la firma estricta actualizar_precio(codigo, nuevo_precio).
+    Usa buscar_codigo internamente de forma limpia.
     """
-    dict_recorridos = recorridos if recorridos is not None else _recorridos_respaldo
-    dict_venta = venta if venta is not None else _venta_respaldo
-    
     codigo_normalizado = codigo.strip().upper()
-    if not buscar_codigo(codigo_normalizado, dict_recorridos):
+    if not buscar_codigo(codigo_normalizado, recorridos):
         return False
-    dict_venta[codigo_normalizado][0] = nuevo_precio
+    venta[codigo_normalizado][0] = nuevo_precio
     return True
 
 
-def agregar_recorrido(codigo, origen, destino, distancia, tipo_bus, servicio, tiene_wifi, precio, asientos, recorridos=None, venta=None):
+def agregar_recorrido(codigo, origen, destino, distancia, tipo_bus, servicio, tiene_wifi, precio, asientos, recorridos, venta):
     """
     Registra el nuevo recorrido en los diccionarios de forma estandarizada (Opción 4).
     """
-    dict_recorridos = recorridos if recorridos is not None else _recorridos_respaldo
-    dict_venta = venta if venta is not None else _venta_respaldo
-    
     codigo_normalizado = codigo.strip().upper()
-    if buscar_codigo(codigo_normalizado, dict_recorridos):
+    if buscar_codigo(codigo_normalizado, recorridos):
         return False
 
-    dict_recorridos[codigo_normalizado] = [
+    recorridos[codigo_normalizado] = [
         origen.strip(),
         destino.strip(),
         distancia,
@@ -152,29 +117,25 @@ def agregar_recorrido(codigo, origen, destino, distancia, tipo_bus, servicio, ti
         servicio.strip().lower(),
         tiene_wifi,
     ]
-    dict_venta[codigo_normalizado] = [precio, asientos]
+    venta[codigo_normalizado] = [precio, asientos]
     return True
 
 
-def eliminar_recorrido(codigo, recorridos=None, venta=None):
+def eliminar_recorrido(codigo, recorridos, venta):
     """
     Elimina un recorrido de ambos diccionarios de forma segura si existe (Opción 5).
-    Cumple con la firma estricta eliminar_recorrido(codigo).
     """
-    dict_recorridos = recorridos if recorridos is not None else _recorridos_respaldo
-    dict_venta = venta if venta is not None else _venta_respaldo
-    
     codigo_normalizado = codigo.strip().upper()
-    if not buscar_codigo(codigo_normalizado, dict_recorridos):
+    if not buscar_codigo(codigo_normalizado, recorridos):
         return False
-    del dict_recorridos[codigo_normalizado]
-    del dict_venta[codigo_normalizado]
+    del recorridos[codigo_normalizado]
+    del venta[codigo_normalizado]
     return True
 
 
 def solicitar_rango_precios():
     """
-    Pide y valida el rango de precios gestionando excepciones en el programa principal.
+    Pide y valida el rango de precios gestionando excepciones en el programa principal (IE 2.5.1).
     Garantiza que p_min >= 0, p_max >= 0 y p_min <= p_max.
     """
     while True:
@@ -186,7 +147,6 @@ def solicitar_rango_precios():
             continue
 
         if p_min < 0 or p_max < 0 or p_min > p_max:
-            # Si el rango es inconsistente o negativo, se vuelve a solicitar de manera limpia
             continue
 
         return p_min, p_max
@@ -196,7 +156,7 @@ def solicitar_rango_precios():
 # FUNCIONES DE VALIDACIÓN INDEPENDIENTES (Opción 4 - Una por campo)
 # ---------------------------------------------------------------------
 
-def validar_codigo(valor, recorridos=None):
+def validar_codigo(valor, recorridos):
     """Retorna True si el código no está vacío, no son solo espacios y es único."""
     if not isinstance(valor, str) or valor.strip() == "":
         return False
@@ -253,7 +213,7 @@ def validar_asientos(valor):
 # PROGRAMA PRINCIPAL
 # ---------------------------------------------------------------------
 def main():
-    # Inicialización local de diccionarios (Cumple IE 2.1.1 y aislamiento de main)
+    # Inicialización local de diccionarios (IE 2.1.1)
     recorridos = {
         'R001': ['Santiago', 'Valparaíso', 120, 'normal', 'dia', True],
         'R002': ['Santiago', 'Concepción', 500, 'cama', 'noche', True],
@@ -271,12 +231,6 @@ def main():
         'R005': [18990, 3],
         'R006': [4990, 12]
     }
-
-    # Sincronizamos las variables globales de respaldo con las locales del main 
-    # para asegurar consistencia si el corrector invoca métodos sin argumentos.
-    global _recorridos_respaldo, _venta_respaldo
-    _recorridos_respaldo = recorridos
-    _venta_respaldo = venta
 
     while True:
         mostrar_menu()
